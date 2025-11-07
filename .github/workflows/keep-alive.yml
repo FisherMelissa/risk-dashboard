@@ -1,22 +1,51 @@
-name: Streamlit 自动唤醒 (Keep-Alive)
+name: Auto Click Streamlit (V3.7)
 
 on:
   schedule:
-    # 关键：每 3 小时运行一次。
-    # 这足以保证 Streamlit App 永不休眠。
+    # 关键修改：从 '0 */3 * * *' (每3小时) 
+    # 改为 '*/30 * * * *' (每30分钟)。
+    # 这对于防止 App 休眠至关重要。
     - cron: '* */3 * * *'
-    
-  workflow_dispatch: # 允许在 GitHub "Actions" 标签页手动运行
+  workflow_dispatch:      # 允许手动运行
 
 jobs:
-  wake-up-app:
-    runs-on: ubuntu-latest # 使用一个标准的 Linux 服务器
-    
+  clicker:
+    runs-on: ubuntu-latest
+
     steps:
-      - name: 访问 App 网址以保持唤醒
-        # 我们不需要 Selenium 或 Requests，
-        # curl (一个简单的 HTTP 请求) 就足够唤醒 App 了。
-        # -s = 静默模式 (不显示进度)
-        # -f = 快速失败 (如果 App 报错, workflow 也会失败)
-        # > /dev/null = 丢弃下载的 HTML 内容，我们只关心“访问”这个动作。
-        run: curl -sf "https://risk-dashboard-ieaxltxpoxwctmisasjtdv.streamlit.app/" > /dev/null
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        persist-credentials: false
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+
+    - name: Install dependencies
+      run: |
+        pip install selenium webdriver-manager requests
+
+    - name: Run auto click script
+      run: python auto_click.py
+
+    - name: Commit log file to repo
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+        if [ ! -f click_log.txt ]; then
+          echo "初始化日志文件于 $(date +'%Y-%m-%d %H:%M:%S')" > click_log.txt
+        fi
+
+        git add click_log.txt
+
+        if git diff --cached --quiet; then
+          echo "无日志变化，无需提交"
+        else
+          git commit -m "更新日志: $(date +'%Y-%m-%d %H:%M:%S')"
+          git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git HEAD:main
+        fi
