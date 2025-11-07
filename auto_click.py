@@ -13,7 +13,9 @@ import sys # 导入 sys 模块
 app_url = "https://risk-dashboard-ieaxltxpoxwctmisasjtdv.streamlit.app/"
 log_file = "click_log.txt"
 log_retention_days = 2
-sleep_text = "get this app back up" # 睡眠按钮上的关键文字 (保持小写)
+# --- V3.12 修复：使用 "zzzz" 作为更可靠的休眠关键字 ---
+sleep_text = "zzzz" # 睡眠页面上的 "Zzzz" (转为小写)
+# --------------------------------------------------
 
 def log_message(message):
     """将消息写入日志文件并打印"""
@@ -67,8 +69,11 @@ def lightweight_check():
         response = requests.get(app_url, timeout=20, headers=headers)
         response.raise_for_status() 
         
-        page_content = response.text.lower() # V3.10 修复
+        # --- V3.10 修复：将页面内容转换为小写再检查 ---
+        page_content = response.text.lower()
+        # --------------------------------------------------
 
+        # 检查页面内容 (现在是小写 vs 小写 "zzzz")
         if sleep_text in page_content:
             log_message("检测到应用处于睡眠状态。即将启动 Selenium 唤醒...")
             log_entry = f"[{timestamp}] [轻量检查] 检测到睡眠，准备唤醒\n"
@@ -111,8 +116,9 @@ def heavy_wakeup():
         time.sleep(30) 
 
         # V3.10 修复：不区分大小写的 XPath
-        lower_case_sleep_text = sleep_text
-        xpath_query = f"//button[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '{lower_case_sleep_text}')]"
+        # 按钮上的文字
+        lower_case_button_text = "get this app back up"
+        xpath_query = f"//button[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '{lower_case_button_text}')]"
         
         buttons = driver.find_elements(By.XPATH, xpath_query)
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
