@@ -1,0 +1,22 @@
+name: Streamlit 自动唤醒 (Keep-Alive)
+
+on:
+  schedule:
+    # 关键：每 3 小时运行一次。
+    # 这足以保证 Streamlit App 永不休眠。
+    - cron: '* */3 * * *'
+    
+  workflow_dispatch: # 允许在 GitHub "Actions" 标签页手动运行
+
+jobs:
+  wake-up-app:
+    runs-on: ubuntu-latest # 使用一个标准的 Linux 服务器
+    
+    steps:
+      - name: 访问 App 网址以保持唤醒
+        # 我们不需要 Selenium 或 Requests，
+        # curl (一个简单的 HTTP 请求) 就足够唤醒 App 了。
+        # -s = 静默模式 (不显示进度)
+        # -f = 快速失败 (如果 App 报错, workflow 也会失败)
+        # > /dev/null = 丢弃下载的 HTML 内容，我们只关心“访问”这个动作。
+        run: curl -sf "https://risk-dashboard-ieaxltxpoxwctmisasjtdv.streamlit.app/" > /dev/null
