@@ -1,4 +1,4 @@
-# V3.14 - 修复了 '· Streamlit' 标题匹配 BUG 和 try/except 逻辑
+# V3.15 - 最终修复：使用您截图中 100% 正确的标题
 import sys
 import time
 import os
@@ -8,7 +8,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException # <-- 导入 TimeoutException
+from selenium.common.exceptions import TimeoutException # 导入 TimeoutException
 from webdriver_manager.chrome import ChromeDriverManager
 from datetime import datetime, timedelta
 
@@ -18,8 +18,8 @@ LOG_FILE = "click_log.txt"
 LOG_RETENTION_DAYS = 2
 SLEEP_BUTTON_TEXT = "get this app back up" # 按钮上的文字
 
-# --- V3.14 关键修复：标题必须完全匹配 (包括 Streamlit 自动添加的后缀) ---
-APP_TITLE_TEXT = "青少年风险动态评估与分级干预系统 (V3.3) · Streamlit"
+# --- V3.15 关键修复：使用您截图 (image_68a81f.png) 中的“真相”标题 ---
+APP_TITLE_TEXT = "青少年风险动态评估与分级干预系统 (V3.3)"
 # -----------------------------------------------------------------
 
 def log_message(message):
@@ -52,7 +52,7 @@ def clean_old_logs():
     except Exception as e: log_message(f"日志清理失败：{e}")
 
 
-# --- V3.14 核心：只使用 Selenium (修复了 try/except 逻辑) ---
+# --- V3.15 核心：修复了 V3.13 的 try/except 逻辑 ---
 def run_selenium_wakeup():
     log_message("启动 Selenium 唤醒流程...")
     driver = None
@@ -70,7 +70,7 @@ def run_selenium_wakeup():
         driver.get(APP_URL)
 
         # 核心逻辑：我们“等待” 2 分钟 (120秒)，看“睡眠按钮”是否会出现
-        # 我们把“等待”和“点击”放在一个 try 块中
+        wait = WebDriverWait(driver, 120) 
         
         # 不区分大小写的 XPath 查询
         xpath_query = f"//button[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '{SLEEP_BUTTON_TEXT}')]"
@@ -78,7 +78,6 @@ def run_selenium_wakeup():
         try:
             # 1. 尝试寻找“睡眠按钮”
             log_message("正在检测“睡眠按钮” (最长等待 120 秒)...")
-            wait = WebDriverWait(driver, 120) # 明确设置 120 秒等待
             button = wait.until(
                 EC.element_to_be_clickable((By.XPATH, xpath_query))
             )
@@ -87,7 +86,7 @@ def run_selenium_wakeup():
             log_message("检测到睡眠按钮，正在点击...")
             button.click()
             
-            # 3. 点击后，等待 App 标题加载
+            # 3. 点击后，等待 App 标题加载 (使用 V3.15 的正确标题)
             log_message("已点击，等待 App 标题加载...")
             wait.until(EC.title_contains(APP_TITLE_TEXT))
             log_message(f"App 标题 '{APP_TITLE_TEXT}' 加载成功。App 已唤醒！")
@@ -97,11 +96,11 @@ def run_selenium_wakeup():
             #    这意味着 App *本来就是醒着的*
             log_message("未在 120 秒内检测到睡眠按钮。")
             
-            # 5. 我们最后验证一次标题是否正确
+            # 5. 我们最后验证一次标题是否正确 (使用 V3.15 的正确标题)
             if APP_TITLE_TEXT in driver.title:
                 log_message(f"App 标题 '{APP_TITLE_TEXT}' 已存在。App 确认处于唤醒状态。")
             else:
-                log_message(f"警告：App 已唤醒，但标题不正确！(当前标题: {driver.title})")
+                log_message(f"警告：App 已唤醒，但标题不正确！(期望: '{APP_TITLE_TEXT}', 实际: '{driver.title}')")
 
     except Exception as e:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -118,7 +117,5 @@ def run_selenium_wakeup():
 # --- 主执行 ---
 if __name__ == "__main__":
     clean_old_logs()
-    
     run_selenium_wakeup()
-    
     log_message("检查完成。")
